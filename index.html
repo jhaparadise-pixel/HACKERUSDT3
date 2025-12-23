@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>TRON 靓地址生成器（多线程）</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, button { padding: 8px; margin: 6px 0; }
+    pre { background: #111; color: #0f0; padding: 12px; }
+  </style>
+</head>
+<body>
+
+<h2>TRON 靓地址生成器（多线程 Worker）</h2>
+
+<input id="prefix" placeholder="地址前缀（如 ABC）" />
+<br>
+<button onclick="start()">开始生成</button>
+<button onclick="stop()">停止</button>
+
+<pre id="log">等待开始…</pre>
+
+<script>
+let workers = [];
+let running = false;
+let total = 0;
+const WORKER_COUNT = navigator.hardwareConcurrency || 4;
+
+function start() {
+  if (running) return;
+  running = true;
+  total = 0;
+
+  const prefix = document.getElementById("prefix").value.toUpperCase();
+  document.getElementById("log").textContent =
+    `启动 ${WORKER_COUNT} 个 Worker...\n`;
+
+  for (let i = 0; i < WORKER_COUNT; i++) {
+    const w = new Worker("worker.js");
+    w.postMessage({ prefix });
+    w.onmessage = (e) => {
+      if (e.data.found) {
+        document.getElementById("log").textContent =
+          "✅ 找到靓地址！\n\n" +
+          "地址: " + e.data.address + "\n" +
+          "尝试次数: " + (total + e.data.count);
+        stop();
+      } else {
+        total += e.data.count;
+        document.getElementById("log").textContent =
+          "已尝试 " + total + " 次...";
+      }
+    };
+    workers.push(w);
+  }
+}
+
+function stop() {
+  running = false;
+  workers.forEach(w => w.terminate());
+  workers = [];
+}
+</script>
+
+</body>
+</html>
